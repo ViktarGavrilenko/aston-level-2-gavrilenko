@@ -2,7 +2,36 @@ package org.example.map;
 
 import java.util.Arrays;
 
+/**
+ * Own implementation of the hashmap class
+ *
+ * @param <K> the type of keys maintained by this map
+ * @param <V> the type of mapped values
+ * @author Viktor Gavrilenko
+ * @date 24.05.2024
+ */
 public class MyHashMap<K, V> {
+    /**
+     * The default initial capacity.
+     */
+    private static final int CAPACITY = 16;
+    /**
+     * The load factor.
+     */
+    private static final float DEFAULT_LOAD_FACTOR = 0.75f;
+    /**
+     * The table, initialized on first use, and resized as
+     * necessary. When allocated, length is always a power of two.
+     */
+    private Node<K, V>[] table;
+    /**
+     * The number of key-value mappings contained in this map.
+     */
+    private int size;
+
+    /**
+     * Basic hash bin node.
+     */
     static class Node<K, V> {
         private final int hash;
         private final K key;
@@ -41,17 +70,21 @@ public class MyHashMap<K, V> {
         }
     }
 
-    private static final int CAPACITY = 16;
-    private static final float DEFAULT_LOAD_FACTOR = 0.75f;
-    private Node<K, V>[] table;
-    private int size;
-
+    /**
+     * Constructs an empty {@code MyHashMap} with the default initial capacity
+     * (16) and the default load factor (0.75).
+     */
     public MyHashMap() {
-        this.table = (Node<K, V>[]) new Node[CAPACITY];
+        this.table = new Node[CAPACITY];
         this.size = 0;
     }
 
-    public int getSize() {
+    /**
+     * Returns the number of key-value mappings in this map.
+     *
+     * @return the number of key-value mappings in this map
+     */
+    public int size() {
         return size;
     }
 
@@ -63,8 +96,11 @@ public class MyHashMap<K, V> {
         return hash & (length - 1);
     }
 
+    /**
+     * Doubles the size of the table. Redistributes the items in the new table.
+     */
     private void resize() {
-        Node<K, V>[] newTable = (Node<K, V>[]) new Node[table.length * 2];
+        Node<K, V>[] newTable = new Node[table.length * 2];
         for (Node<K, V> mainNode : table) {
             Node<K, V> node = mainNode;
             while (node != null) {
@@ -72,24 +108,24 @@ public class MyHashMap<K, V> {
                 V value = node.getValue();
 
                 if (key == null) {
-                    if (newTable[0] == null) {
-                        newTable[0] = addNode(0, null, value);
-                    } else {
-                        addNodeToLinkedList(newTable[0], 0, null, value);
-                    }
+                    addByCondition(newTable, 0, 0, null, value);
                 } else {
                     int hash = hash(key);
                     int index = indexFor(hash, newTable.length);
-                    if (newTable[index] == null) {
-                        newTable[index] = addNode(hash, key, value);
-                    } else {
-                        addNodeToLinkedList(newTable[index], hash, key, value);
-                    }
+                    addByCondition(newTable, index, hash, key, value);
                 }
                 node = node.getNext();
             }
         }
         table = newTable;
+    }
+
+    private void addByCondition(Node<K, V>[] newTable, int index, int hash, K key, V value) {
+        if (newTable[index] == null) {
+            newTable[index] = addNode(hash, key, value);
+        } else {
+            addNodeToLinkedList(newTable[index], hash, key, value);
+        }
     }
 
     /**
@@ -101,6 +137,16 @@ public class MyHashMap<K, V> {
         return size == 0;
     }
 
+    /**
+     * Returns the value to which the specified key is mapped,
+     * or {@code null} if this map contains no mapping for the key.
+     *
+     * <p>A return value of {@code null} does not <i>necessarily</i>
+     * indicate that the map contains no mapping for the key; it's also
+     * possible that the map explicitly maps the key to {@code null}.
+     * The {@link #containsKey containsKey} operation may be used to
+     * distinguish these two cases.
+     */
     public V get(K key) {
         int index;
         int hash;
@@ -128,6 +174,14 @@ public class MyHashMap<K, V> {
         }
     }
 
+    /**
+     * Associates the specified value with the specified key in this map.
+     * If the map previously contained a mapping for the key, the old
+     * value is replaced.
+     *
+     * @param key   key with which the specified value is to be associated
+     * @param value value to be associated with the specified key
+     */
     public void put(K key, V value) {
         if (key == null) {
             putForNullKey(value);
@@ -150,7 +204,6 @@ public class MyHashMap<K, V> {
 
     /**
      * Removes all of the mappings from this map.
-     * The map will be empty after this call returns.
      */
     public void clear() {
         if (table != null && size > 0) {
@@ -194,6 +247,14 @@ public class MyHashMap<K, V> {
         }
     }
 
+    /**
+     * Returns {@code true} if this map maps one or more keys to the
+     * specified value.
+     *
+     * @param value value whose presence in this map is to be tested
+     * @return {@code true} if this map maps one or more keys to the
+     * specified value
+     */
     public boolean containsValue(V value) {
         boolean flag = false;
         if (size != 0) {
@@ -240,6 +301,15 @@ public class MyHashMap<K, V> {
         return new Node<>(hash, key, value, null);
     }
 
+    /**
+     * Removes the mapping for the specified key from this map if present.
+     *
+     * @param key key whose mapping is to be removed from the map
+     * @return the previous value associated with {@code key}, or
+     * {@code null} if there was no mapping for {@code key}.
+     * (A {@code null} return can also indicate that the map
+     * previously associated {@code null} with {@code key}.)
+     */
     public V remove(K key) {
         int index;
         int hash;
@@ -258,19 +328,7 @@ public class MyHashMap<K, V> {
                 && (node.getKey() != null && node.getKey().equals(key))
                 || (key == null && node.getKey() == null)) {
             V value = node.getValue();
-            if (beforeNode != null) {
-                if (node.getNext() == null) {
-                    beforeNode.setNext(null);
-                } else {
-                    beforeNode.setNext(node.getNext());
-                }
-            } else {
-                if (node.getNext() == null) {
-                    table[index] = null;
-                } else {
-                    table[index] = node.getNext();
-                }
-            }
+            correctLinksAfterRemove(beforeNode, node, index);
             size--;
             return value;
         } else {
@@ -278,6 +336,22 @@ public class MyHashMap<K, V> {
                 return null;
             } else {
                 return removeNode(node.getNext(), hash, key, node, index);
+            }
+        }
+    }
+
+    private void correctLinksAfterRemove(Node<K, V> beforeNode, Node<K, V> node, int index){
+        if (beforeNode != null) {
+            if (node.getNext() == null) {
+                beforeNode.setNext(null);
+            } else {
+                beforeNode.setNext(node.getNext());
+            }
+        } else {
+            if (node.getNext() == null) {
+                table[index] = null;
+            } else {
+                table[index] = node.getNext();
             }
         }
     }
